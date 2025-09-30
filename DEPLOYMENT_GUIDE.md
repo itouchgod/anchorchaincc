@@ -35,7 +35,12 @@ git push origin main
 1. **注册并创建项目**
    - 访问 https://console.neon.tech
    - 使用GitHub账号登录
-   - 创建新项目，选择地区为 `Asia Pacific (Singapore)`
+   - 创建新项目，配置如下：
+     - 项目名称: `accc`
+     - Postgres 版本: `15` (推荐)
+     - 云服务商: `AWS`
+     - 区域: `Asia Pacific (Singapore)`
+     - **Enable Neon Auth: ❌ 关闭** (本项目不需要用户认证)
 
 2. **获取连接字符串**
    - 在项目仪表板中，点击 "Connection Details"
