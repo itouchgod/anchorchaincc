@@ -1,0 +1,160 @@
+{
+  "name": "Maritime News Crawler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://example.com/maritime-news.rss",
+        "options": {}
+      },
+      "id": "rss-reader",
+      "name": "RSS Reader",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "title-condition",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "anchor chain",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-news",
+      "name": "Filter Anchor Chain News",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract entities and clean data\nconst items = $input.all();\nconst processedItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extract manufacturer names using simple pattern matching\n  const manufacturerPatterns = [\n    /Jiangsu Anchor Chain/gi,\n    /Ramnäs Bruk/gi,\n    /CMP Group/gi,\n    /Peerless Chain/gi,\n    /Daido Steel/gi\n  ];\n  \n  let manufacturerId = null;\n  let manufacturer = null;\n  \n  for (const pattern of manufacturerPatterns) {\n    if (pattern.test(data.title + ' ' + data.description)) {\n      const match = data.title.match(pattern) || data.description.match(pattern);\n      if (match) {\n        manufacturer = match[0];\n        // Map to manufacturer ID (in real app, this would be a database lookup)\n        const manufacturerMap = {\n          'Jiangsu Anchor Chain': '1',\n          'Ramnäs Bruk': '2',\n          'CMP Group': '3',\n          'Peerless Chain': '4',\n          'Daido Steel': '5'\n        };\n        manufacturerId = manufacturerMap[manufacturer] || null;\n        break;\n      }\n    }\n  }\n  \n  // Extract certification mentions\n  const certPatterns = [\n    /LR|Lloyd's Register/gi,\n    /ABS|American Bureau of Shipping/gi,\n    /DNV/gi,\n    /RINA/gi,\n    /CCS|China Classification Society/gi\n  ];\n  \n  const certifications = [];\n  for (const pattern of certPatterns) {\n    if (pattern.test(data.title + ' ' + data.description)) {\n      const match = data.title.match(pattern) || data.description.match(pattern);\n      if (match) {\n        certifications.push(match[0]);\n      }\n    }\n  }\n  \n  processedItems.push({\n    json: {\n      title: data.title,\n      summary: data.description,\n      publishedAt: data.pubDate,\n      url: data.link,\n      manufacturerId,\n      manufacturer,\n      certifications,\n      entities: {\n        manufacturers: manufacturer ? [manufacturer] : [],\n        certifications\n      },\n      sourceId: 'maritime-news-rss',\n      publisher: 'Maritime News',\n      lang: 'en',\n      status: 'active'\n    }\n  });\n}\n\nreturn processedItems;"
+      },
+      "id": "process-data",
+      "name": "Process News Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:3000/api/news",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "items",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "save-to-db",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "RSS Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Reader": {
+      "main": [
+        [
+          {
+            "node": "Filter Anchor Chain News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Anchor Chain News": {
+      "main": [
+        [
+          {
+            "node": "Process News Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process News Data": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "maritime-news-crawler",
+  "tags": []
+}

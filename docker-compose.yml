@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: anchorchaincc-db
+    environment:
+      POSTGRES_DB: anchorchaincc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Meilisearch 搜索引擎
+  meilisearch:
+    image: getmeili/meilisearch:v1.5
+    container_name: anchorchaincc-search
+    environment:
+      MEILI_MASTER_KEY: your-meilisearch-key
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # n8n 工作流自动化
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: anchorchaincc-n8n
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+
+  # Next.js 应用
+  app:
+    build: .
+    container_name: anchorchaincc-app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/anchorchaincc?schema=public
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: your-meilisearch-key
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    volumes:
+      - ./prisma:/app/prisma
+      - ./src/generated:/app/src/generated
+
+volumes:
+  postgres_data:
+  meilisearch_data:
+  n8n_data:

@@ -1,0 +1,247 @@
+// Anchor Chain Industry Intelligence Database Schema
+// 锚链行业情报库数据模型
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 厂商主档
+model Manufacturer {
+  id                String   @id @default(cuid())
+  legalName         String   @map("legal_name")
+  brand             String?
+  aliases           String[] @default([])
+  countryCode       String   @map("country_code")
+  address           String?
+  geo               Float[]  @default([]) // [longitude, latitude]
+  foundedYear       Int?     @map("founded_year")
+  siteUrl           String?  @map("site_url")
+  publicEmails      String[] @default([]) @map("public_emails")
+  phones            String[] @default([])
+  profileStatus     String   @default("pending") @map("profile_status") // pending, verified, suspended
+  lastVerifiedAt    DateTime? @map("last_verified_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  facilities        Facility[]
+  certifications    Certification[]
+  products          Product[]
+  newsItems         NewsItem[]
+  documents         Document[]
+  entityLinks       EntityLink[]
+  changeHistory     ChangeHistory[]
+
+  @@map("manufacturers")
+}
+
+// 厂区/工厂
+model Facility {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  name              String
+  address           String?
+  geo               Float[]  @default([]) // [longitude, latitude]
+  annualCapacity    Float?   @map("annual_capacity") // 年产能 (tons)
+  productionLines   String[] @default([]) @map("production_lines") // 产线类型
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("facilities")
+}
+
+// 证书
+model Certification {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  classBody         String   @map("class_body") // LR, ABS, DNV, RINA, CCS, IRS, RMRS
+  certCode          String   @map("cert_code")
+  scope             String   // 认证范围
+  validFrom         DateTime @map("valid_from")
+  validTo           DateTime @map("valid_to")
+  docUrl            String?  @map("doc_url")
+  status            String   @default("active") // active, expired, suspended
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
+}
+
+// 产品
+model Product {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  category          String   // stud, studless, anchor_fittings
+  grade             String   // U2, U3, R3, R4, R5
+  diameterMin       Float    @map("diameter_min") // mm
+  diameterMax       Float    @map("diameter_max") // mm
+  treatment         String[] @default([]) // bitumen, galv, etc.
+  standards         String[] @default([]) // ISO, OCIMF, EN
+  specifications    Json?    // 详细规格参数
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("products")
+}
+
+// 新闻/动态
+model NewsItem {
+  id                String   @id @default(cuid())
+  manufacturerId    String?  @map("manufacturer_id")
+  sourceId          String   @map("source_id")
+  publisher         String
+  title             String
+  publishedAt       DateTime @map("published_at")
+  lang              String   @default("en")
+  summary           String?
+  content           String?
+  entities          Json?    // 提取的实体信息
+  url               String
+  snapshot          String?  // 快照URL
+  status            String   @default("active") // active, archived, removed
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+
+  @@map("news_items")
+}
+
+// 文档
+model Document {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  type              String   // catalog, datasheet, test_report, certificate
+  title             String
+  fileUrl           String   @map("file_url")
+  textIndex         String?  @map("text_index") // 提取的文本内容
+  fileSize          Int?     @map("file_size")
+  mimeType          String?  @map("mime_type")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+// 招投标/项目
+model BidProject {
+  id                String   @id @default(cuid())
+  title             String
+  location          String?
+  description       String?
+  specifications    Json?    // 规格要求
+  quantity          Float?   // 数量
+  unit              String?  // 单位
+  deadline          DateTime?
+  status            String   @default("open") // open, closed, awarded
+  source            String   // 来源
+  sourceUrl         String?  @map("source_url")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("bid_projects")
+}
+
+// 数据源目录
+model SourceCatalog {
+  id                String   @id @default(cuid())
+  name              String
+  url               String
+  type              String   // rss, sitemap, api, scraper
+  crawlerType       String   @map("crawler_type") // rss, sitemap, playwright
+  robotsStatus      String   @map("robots_status") // allowed, disallowed, unknown
+  crawlFrequency    Int      @map("crawl_frequency") // minutes
+  lastCrawlAt       DateTime? @map("last_crawl_at")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  crawlRuns         CrawlRun[]
+
+  @@map("source_catalog")
+}
+
+// 实体链接
+model EntityLink {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  externalId        String   @map("external_id")
+  externalType      String   @map("external_type") // business_registry, class_society, linkedin
+  externalUrl       String?  @map("external_url")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("entity_links")
+}
+
+// 抓取运行记录
+model CrawlRun {
+  id                String   @id @default(cuid())
+  sourceId          String   @map("source_id")
+  status            String   // success, failed, partial
+  httpCode          Int?     @map("http_code")
+  duration          Int?     // milliseconds
+  itemsFound        Int      @map("items_found")
+  itemsProcessed    Int      @map("items_processed")
+  errorMessage      String?  @map("error_message")
+  startedAt         DateTime @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+
+  // Relations
+  source            SourceCatalog @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@map("crawl_runs")
+}
+
+// 转换审计
+model TransformAudit {
+  id                String   @id @default(cuid())
+  sourceType        String   @map("source_type")
+  sourceId          String   @map("source_id")
+  fieldMapping      Json     @map("field_mapping")
+  confidence        Float    // 置信度 0-1
+  deduplicationLog  Json?    @map("deduplication_log")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("transform_audit")
+}
+
+// 变更历史 (SCD2)
+model ChangeHistory {
+  id                String   @id @default(cuid())
+  manufacturerId    String   @map("manufacturer_id")
+  fieldName         String   @map("field_name")
+  oldValue          String?  @map("old_value")
+  newValue          String?  @map("new_value")
+  changeReason      String?  @map("change_reason")
+  changedBy         String?  @map("changed_by")
+  changedAt         DateTime @default(now()) @map("changed_at")
+
+  // Relations
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@map("change_history")
+}
