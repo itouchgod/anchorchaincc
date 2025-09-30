@@ -56,7 +56,7 @@ src/
 ### 环境要求
 
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 14+ (或使用免费云数据库)
 - npm 或 yarn
 
 ### 安装依赖
@@ -67,14 +67,15 @@ npm install
 
 ### 环境配置
 
-复制 `.env.example` 到 `.env` 并配置：
+复制 `.env.template` 到 `.env` 并配置：
 
 ```bash
-cp .env.example .env
+cp .env.template .env
 ```
 
 ### 数据库设置
 
+#### 本地开发
 ```bash
 # 生成 Prisma 客户端
 npm run db:generate
@@ -86,6 +87,23 @@ npm run db:push
 npm run db:seed
 ```
 
+#### 使用免费云数据库
+推荐使用以下免费方案：
+
+1. **Neon** (推荐)
+   - 注册: https://neon.tech
+   - 免费额度: 0.5GB存储，无时间限制
+   - 支持PostgreSQL完整功能
+
+2. **Supabase**
+   - 注册: https://supabase.com
+   - 免费额度: 500MB存储，无时间限制
+   - 提供PostgreSQL + 实时功能
+
+3. **Railway**
+   - 注册: https://railway.app
+   - 免费额度: $5/月信用额度
+
 ### 启动开发服务器
 
 ```bash
@@ -93,6 +111,40 @@ npm run dev
 ```
 
 访问 [http://localhost:3000](http://localhost:3000)
+
+## 🚀 Vercel 部署指南
+
+### 1. 准备数据库
+
+选择以下任一免费数据库服务：
+
+#### 方案A: Neon (推荐)
+1. 访问 [Neon Console](https://console.neon.tech)
+2. 创建新项目
+3. 复制连接字符串
+
+#### 方案B: Supabase
+1. 访问 [Supabase Dashboard](https://app.supabase.com)
+2. 创建新项目
+3. 在Settings > Database中复制连接字符串
+
+### 2. 部署到Vercel
+
+1. 将代码推送到GitHub
+2. 在 [Vercel Dashboard](https://vercel.com) 导入项目
+3. 在项目设置中添加环境变量：
+   ```
+   DATABASE_URL=你的数据库连接字符串
+   ```
+4. 部署完成后，Vercel会自动运行数据库迁移
+
+### 3. 验证部署
+
+访问你的Vercel域名，确认：
+- ✅ 主页正常加载
+- ✅ 厂商列表显示
+- ✅ 新闻页面工作
+- ✅ 数据库连接正常
 
 ## 📊 功能特性
 

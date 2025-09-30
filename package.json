@@ -11,7 +11,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:setup": "node scripts/setup-database.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@mluonet/pre-hydration-cleanup": "file:pre-hydration-cleanup",
